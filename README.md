@@ -2,6 +2,8 @@
 
 SwipeHistoryNavigationLayout provides the same functionality to WebView as overcroll-history-navigation in Chrome for Android.
 
+![](./art/sample-art.gif)
+
 ## Usage
 
 ### Basic(use with WebView)
