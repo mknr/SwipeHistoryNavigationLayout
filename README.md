@@ -126,7 +126,26 @@ It is possible to use it together with SwipeRefreshLayout
 
 ## Installation
 
-not yet.
+Add it in your root build.gradle at the end of repositories:
+
+```groovy
+	allprojects {
+		repositories {
+			...
+			maven { url 'https://jitpack.io' }
+		}
+	}
+```
+
+Step 2. Add the dependency
+
+${latest.version} is [![](https://jitpack.io/v/mknr/SwipeHistoryNavigationLayout.svg)](https://jitpack.io/#mknr/SwipeHistoryNavigationLayout)
+
+```groovy
+	dependencies {
+	        implementation "com.github.mknr:SwipeHistoryNavigationLayout:${latest.version}"
+	}
+```
 
 ## License
 
