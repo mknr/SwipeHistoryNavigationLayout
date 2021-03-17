@@ -16,8 +16,9 @@ import kotlin.math.min
 
 class SwipeHistoryNavigationLayout : FrameLayout {
     private val leftHandleView: HandleView
-    private val rightHandleView: HandleView
+    private val  rightHandleView: HandleView
 
+    // Styleable properties
     private val iconWidth: Float = resources.getDimension(R.dimen.handle_icon_size)
     private val backgroundDrawable: Drawable?
     private val leftEdgeDrawable: Drawable?
@@ -25,6 +26,43 @@ class SwipeHistoryNavigationLayout : FrameLayout {
     private val firstText: String
     private val inactiveColor: Int
     private val activeColor: Int
+    // end Styleable properties
+
+    private var leftHandleFirstPos: Float = Float.NaN
+    private var rightHandleFirstPos: Float = Float.NaN
+
+    /**
+     * Left edge touch detection width.
+     */
+    private var leftEdgeWidth = Float.NaN
+
+    /**
+     * Right edge touch detection width.
+     */
+    private var rightEdgeWidth = Float.NaN
+
+    /**
+     * Swipeable width.
+     */
+    private var swipeableWidth = Float.NaN
+
+    /**
+     * Percentage of screen edges to be judged.
+     */
+    private var edgePer = 5 / 100f
+
+    /**
+     * Ratio of swipeable width to screen width..
+     */
+    private var swipeablePer = 15 / 100f
+
+    private var firstTouchX: Int = Int.MIN_VALUE
+    private var isSwipingLeftEdge = false
+    private var isSwipingRightEdge = false
+
+    private var lastTouchX: Float = Float.NaN
+    private var deltaX: Float = Float.NaN
+    private var isSwipeReachesLimit = false
 
     @JvmOverloads
     constructor(
@@ -79,42 +117,6 @@ class SwipeHistoryNavigationLayout : FrameLayout {
             activeColor
         )
     }
-
-    private var leftHandleFirstPos: Float = Float.NaN
-    private var rightHandleFirstPos: Float = Float.NaN
-
-    /**
-     * Left edge touch detection width.
-     */
-    private var leftEdgeWidth = Float.NaN
-
-    /**
-     * Right edge touch detection width.
-     */
-    private var rightEdgeWidth = Float.NaN
-
-    /**
-     * Swipeable width.
-     */
-    private var swipeableWidth = Float.NaN
-
-    /**
-     * Percentage of screen edges to be judged.
-     */
-    private var edgePer = 5 / 100f
-
-    /**
-     * Ratio of swipeable width to screen width..
-     */
-    private var swipeablePer = 15 / 100f
-
-    private var firstTouchX: Int = Int.MIN_VALUE
-    private var isSwipingLeftEdge = false
-    private var isSwipingRightEdge = false
-
-    private var lastTouchX: Float = Float.NaN
-    private var velocityX: Float = Float.NaN
-    private var isSwipeReachesLimit = false
 
     @SuppressLint("RtlHardcoded")
     override fun onFinishInflate() {
@@ -183,7 +185,7 @@ class SwipeHistoryNavigationLayout : FrameLayout {
             }
             MotionEvent.ACTION_MOVE -> {
                 lastTouchX = ev.x
-                velocityX = abs(lastTouchX - firstTouchX)
+                deltaX = abs(lastTouchX - firstTouchX)
                 if (isSwipingLeftEdge) {
                     moveLeftHandle()
                 } else if (isSwipingRightEdge) {
@@ -191,7 +193,7 @@ class SwipeHistoryNavigationLayout : FrameLayout {
                 }
 
                 val rightOffset = isSwipingRightEdge.let { +iconWidth }
-                if (velocityX > swipeableWidth + rightOffset) {
+                if (deltaX > swipeableWidth + rightOffset) {
                     if (!isSwipeReachesLimit) {
                         isSwipeReachesLimit = true
                         swipeReachesLimit()
@@ -220,14 +222,14 @@ class SwipeHistoryNavigationLayout : FrameLayout {
 
     private fun moveLeftHandle() {
         leftHandleView.let {
-            val value = velocityX - firstTouchX - iconWidth
+            val value = deltaX - firstTouchX - iconWidth
             it.translationX = min(value, swipeableWidth - iconWidth)
         }
     }
 
     private fun moveRightHandle() {
         rightHandleView.let {
-            val value = firstTouchX - velocityX + iconWidth / 2
+            val value = firstTouchX - deltaX + iconWidth / 2
             it.translationX = max(value, width - swipeableWidth)
         }
     }
