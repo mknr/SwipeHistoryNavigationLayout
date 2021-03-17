@@ -3,20 +3,24 @@ package com.github.swipehistorynavigation
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.widget.EdgeEffect
 import android.widget.FrameLayout
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.view.ViewCompat
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
 class SwipeHistoryNavigationLayout : FrameLayout {
     private val leftHandleView: HandleView
-    private val  rightHandleView: HandleView
+    private val rightHandleView: HandleView
+    private val rightEdgeEffect: EdgeEffect
 
     // Styleable properties
     private val iconWidth: Float = resources.getDimension(R.dimen.handle_icon_size)
@@ -61,6 +65,7 @@ class SwipeHistoryNavigationLayout : FrameLayout {
     private var isSwipingRightEdge = false
 
     private var lastTouchX: Float = Float.NaN
+    private var oldDeltaX: Float = Float.NaN
     private var deltaX: Float = Float.NaN
     private var isSwipeReachesLimit = false
 
@@ -116,6 +121,8 @@ class SwipeHistoryNavigationLayout : FrameLayout {
             inactiveColor,
             activeColor
         )
+        rightEdgeEffect = EdgeEffect(context)
+        setWillNotDraw(false)
     }
 
     @SuppressLint("RtlHardcoded")
@@ -167,6 +174,7 @@ class SwipeHistoryNavigationLayout : FrameLayout {
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(ev: MotionEvent?): Boolean {
+        var needsInvalidate = false
         when (ev?.action) {
             MotionEvent.ACTION_DOWN -> {
                 if (isLeftEdge(ev.x) && listener.canSwipeLeftEdge()) {
@@ -175,7 +183,7 @@ class SwipeHistoryNavigationLayout : FrameLayout {
                     leftEdgeGrabbed()
                     parent.requestDisallowInterceptTouchEvent(true)
                     return true
-                } else if (isRightEdge(ev.x) && listener.canSwipeRightEdge()) {
+                } else if (isRightEdge(ev.x)) {
                     isSwipingRightEdge = true
                     firstTouchX = width
                     rightEdgeGrabbed()
@@ -185,11 +193,18 @@ class SwipeHistoryNavigationLayout : FrameLayout {
             }
             MotionEvent.ACTION_MOVE -> {
                 lastTouchX = ev.x
+                oldDeltaX = deltaX
                 deltaX = abs(lastTouchX - firstTouchX)
                 if (isSwipingLeftEdge) {
                     moveLeftHandle()
                 } else if (isSwipingRightEdge) {
-                    moveRightHandle()
+                    if (listener.canSwipeRightEdge()) {
+                        moveRightHandle()
+                    } else if (deltaX > oldDeltaX) {
+                        val over = abs(deltaX - oldDeltaX)
+                        rightEdgeEffect.onPull(over / width)
+                        needsInvalidate = true
+                    }
                 }
 
                 val rightOffset = isSwipingRightEdge.let { +iconWidth }
@@ -206,12 +221,18 @@ class SwipeHistoryNavigationLayout : FrameLayout {
                 }
             }
             MotionEvent.ACTION_UP -> {
-                releaseSwipe()
+                needsInvalidate = releaseSwipe()
                 parent.requestDisallowInterceptTouchEvent(false)
             }
         }
+
+        if (needsInvalidate) {
+            ViewCompat.postInvalidateOnAnimation(this);
+        }
+
         return super.onTouchEvent(ev)
     }
+
 
     private fun isLeftEdge(x: Float) = x <= leftEdgeWidth
     private fun isRightEdge(x: Float) = x >= rightEdgeWidth
@@ -241,7 +262,9 @@ class SwipeHistoryNavigationLayout : FrameLayout {
     private fun rightEdgeGrabbed() {
     }
 
-    private fun releaseSwipe() {
+    private fun releaseSwipe(): Boolean {
+        rightEdgeEffect.onRelease()
+
         if (isSwipingLeftEdge) {
             if (isSwipeReachesLimit) {
                 leaveHandle()
@@ -276,14 +299,15 @@ class SwipeHistoryNavigationLayout : FrameLayout {
         isSwipingLeftEdge = false
         isSwipingRightEdge = false
         isSwipeReachesLimit = false
+        return rightEdgeEffect.isFinished
     }
 
     private fun swipeReachesLimit() {
-        if (isSwipingLeftEdge) {
+        if (isSwipingLeftEdge && listener.canSwipeLeftEdge()) {
             listener.leftSwipeReachesLimit()
             leftHandleView.animateActive()
             leftHandleView.animateShowText()
-        } else if (isSwipingRightEdge) {
+        } else if (isSwipingRightEdge && listener.canSwipeRightEdge()) {
             listener.rightSwipeReachesLimit()
             rightHandleView.animateActive()
             rightHandleView.animateShowText()
@@ -299,6 +323,34 @@ class SwipeHistoryNavigationLayout : FrameLayout {
             rightHandleView.animateHideText()
         }
     }
+
+    override fun draw(canvas: Canvas?) {
+        super.draw(canvas)
+        var needsInvalidate = false
+        if (overScrollMode == OVER_SCROLL_ALWAYS || overScrollMode == OVER_SCROLL_IF_CONTENT_SCROLLS) {
+            if (!rightEdgeEffect.isFinished) {
+                canvas?.let {
+                    val restoreCount: Int = canvas.save()
+                    val width: Int = width
+                    val height: Int = height - paddingTop - paddingBottom
+
+                    canvas.rotate(90f)
+                    canvas.translate(paddingTop.toFloat(), -width.toFloat())
+                    rightEdgeEffect.setSize(height, width)
+                    needsInvalidate = needsInvalidate or rightEdgeEffect.draw(canvas)
+                    canvas.restoreToCount(restoreCount)
+                }
+
+            }
+        } else {
+            rightEdgeEffect.finish()
+        }
+        if (needsInvalidate) {
+            // Keep animating
+            ViewCompat.postInvalidateOnAnimation(this);
+        }
+    }
+
 
     var listener: OnListener = object : OnListener {
         override fun canSwipeLeftEdge(): Boolean = true
