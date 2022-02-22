@@ -7,7 +7,9 @@ import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.github.swipehistorynavigation.SwipeHistoryNavigationLayout
@@ -22,6 +24,15 @@ class MainActivity : AppCompatActivity() {
         val webView: WebView = findViewById(R.id.webview)
         webView.settings.apply {
             this.javaScriptEnabled = true
+        }
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
+                return false
+            }
         }
 
         val swipeRefreshLayout: SwipeRefreshLayout = findViewById(R.id.swiperefresh)
@@ -63,7 +74,7 @@ class MainActivity : AppCompatActivity() {
             override fun leftSwipeReachesLimit() = vibrator.vibrateShort()
             override fun rightSwipeReachesLimit() = vibrator.vibrateShort()
         }
-        webView.loadUrl("https://material-ui.com/")
+        webView.loadUrl("https://github.com/")
     }
 }
 
